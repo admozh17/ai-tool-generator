@@ -15,6 +15,8 @@ POST /api/generate ──► generateSpec(prompt, role)        [src/lib/llm.ts]
   │                     buildSpec() validates + role-filters → ToolSpec (JSON)
   ▼
 Client renders ToolSpec  [src/components/ToolRenderer.tsx]
+  │  Preview tab (below)  │  Code tab → generateToolCode(spec, role) [src/lib/codegen.ts]
+  │                          serializes spec → .tsx component + .spec.json (copyable)
   │  per component:                         per action (admin only):
   ▼                                          ▼
 POST /api/tools/execute                     POST /api/actions/execute
@@ -30,6 +32,17 @@ Connector layer  [src/lib/connectors.ts + src/lib/tools.ts]
   └─ /api/connectors/bigquery     — getSpendAnalytics  (warehouse, mocked)
         ▲ getCustomer360 fans out across all four and joins on customerId
 ```
+
+## Eject to code
+The **Code** tab on any generated tool serializes the *already-composed,
+already-governed* `ToolSpec` into (1) the spec JSON and (2) a self-contained
+React/TS component (`generateToolCode` in `src/lib/codegen.ts`) so an engineer can
+take over the prototype. It is a deterministic spec→code serializer — never
+free-form codegen — so it inherits the same guardrails: the output is **role-aware**
+(a viewer's spec has no write actions, so its code has none) and the emitted
+component calls the same `/api/tools/execute` + `/api/actions/execute` endpoints,
+which means masking and write authorization remain enforced server-side. The
+ejected code cannot bypass governance.
 
 ## Key decisions
 

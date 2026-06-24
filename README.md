@@ -95,6 +95,14 @@ not an app rewrite. See them in the in-app **Connectors** view (`/connectors`).
   **deterministic rule-based composer** produces the same spec shape. Either way
   the output is validated against the registry server-side. The active composer is
   shown in the UI (`LLM` vs `rule-based`).
+- **Eject to code (engineer hand-off).** Every generated tool has a **Code** tab
+  alongside the live preview that serializes the composition into the `ToolSpec`
+  JSON + a **self-contained React/TypeScript component** an admin can copy to take
+  over the prototype in a real codebase (`src/lib/codegen.ts`). It's a
+  deterministic spec→code serializer (not free-form codegen), is **role-aware**
+  (a viewer's code omits write actions), and the emitted code calls the **same
+  governed endpoints**, so field masking and write authorization stay enforced
+  server-side — the ejected code cannot bypass governance.
 
 ### Pillar 3 — Governance (the deliberate stress test)
 - **Two roles**, enforced **server-side at the tool/action layer** — the LLM never
@@ -129,6 +137,7 @@ not an app rewrite. See them in the in-app **Connectors** view (`/connectors`).
 | ------------------------------------ | ----------- |
 | Prompt → working tool                | **Built**   |
 | Live rendered UI from the prompt     | **Built**   |
+| View/eject generated tool as code    | **Built**   |
 | Write-back with confirmation         | **Built**   |
 | Role-based governance + audit log    | **Built**   |
 | Many connectors over one interface   | **Built** (4: Postgres, REST, Redshift mock, BigQuery mock) |
