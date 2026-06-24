@@ -1,0 +1,97 @@
+// Prisma schema for the AI Tool Generator.
+// Entities: customers, accounts, transactions + users and an append-only audit log.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  viewer
+  admin
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+enum AccountStatus {
+  active
+  frozen
+}
+
+enum TransactionStatus {
+  normal
+  flagged
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         Role       @default(viewer)
+  createdAt    DateTime   @default(now())
+  auditLogs    AuditLog[]
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  riskLevel RiskLevel @default(low)
+  status    String    @default("active")
+  note      String    @default("")
+  createdAt DateTime  @default(now())
+  accounts  Account[]
+}
+
+model Account {
+  id         String        @id @default(cuid())
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       String
+  balance    Float         @default(0)
+  status     AccountStatus @default(active)
+  createdAt  DateTime      @default(now())
+  transactions Transaction[]
+
+  @@index([customerId])
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  accountId   String
+  account     Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount      Float
+  type        String
+  description String
+  status      TransactionStatus @default(normal)
+  createdAt   DateTime          @default(now())
+
+  @@index([accountId])
+}
+
+// Append-only audit log. One row per governed data fetch or write action.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  userEmail  String
+  role       Role
+  kind       String   // "data_fetch" | "action" | "generation"
+  name       String   // resolved tool/action/registry name, e.g. "listCustomers", "freezeAccount"
+  params     Json     // resolved parameters (not just the prose prompt)
+  targetType String?  // e.g. "Account", "Transaction", "Customer"
+  targetId   String?
+  outcome    String   @default("success") // "success" | "denied" | "error"
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
