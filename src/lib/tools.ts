@@ -302,15 +302,19 @@ async function getCustomer360(
   });
 
   const [risk, activity, spend] = await Promise.all([
-    fetchConnector<RiskRow>("/api/risk-score", { limit: "100" }, "scores"),
+    fetchConnector<RiskRow>(
+      "/api/risk-score",
+      { riskLevel, limit: "100" },
+      "scores",
+    ),
     fetchConnector<ActivityRow>(
       "/api/connectors/redshift",
-      { limit: "100" },
+      { riskLevel, limit: "100" },
       "rows",
     ),
     fetchConnector<SpendRow>(
       "/api/connectors/bigquery",
-      { limit: "100" },
+      { riskLevel, limit: "100" },
       "rows",
     ),
   ]);
