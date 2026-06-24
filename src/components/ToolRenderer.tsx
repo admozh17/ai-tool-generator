@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ComposedAction,
   ComposedComponent,
   DataClass,
   MaskingEntry,
   ResultColumn,
+  Role,
   ToolSpec,
 } from "@/lib/types";
+import { generateToolCode, type GeneratedFile } from "@/lib/codegen";
 
 interface ToolData {
   columns: ResultColumn[];
@@ -85,16 +87,37 @@ async function fetchToolData(
 
 export default function ToolRenderer({
   spec,
+  role,
   onActivity,
 }: {
   spec: ToolSpec;
+  role: Role;
   onActivity?: () => void;
 }) {
+  const [view, setView] = useState<"preview" | "code">("preview");
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{spec.title}</h2>
-        <p className="mt-1 text-sm text-zinc-600">{spec.summary}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">{spec.title}</h2>
+            <p className="mt-1 text-sm text-zinc-600">{spec.summary}</p>
+          </div>
+          <div className="flex shrink-0 rounded-lg border border-zinc-200 p-0.5 text-xs">
+            <button
+              onClick={() => setView("preview")}
+              className={`rounded-md px-3 py-1 font-medium ${view === "preview" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+            >
+              Preview
+            </button>
+            <button
+              onClick={() => setView("code")}
+              className={`rounded-md px-3 py-1 font-medium ${view === "code" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+            >
+              Code
+            </button>
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
           {spec.components.map((c) => (
             <span
@@ -122,16 +145,75 @@ export default function ToolRenderer({
         )}
       </div>
 
-      {spec.components.map((component) => (
-        <ComponentBlock
-          key={component.id}
-          component={component}
-          actions={spec.actions.filter(
-            (a) => a.appliesTo === component.component,
-          )}
-          onActivity={onActivity}
-        />
-      ))}
+      {view === "code" ? (
+        <CodeView spec={spec} role={role} />
+      ) : (
+        spec.components.map((component) => (
+          <ComponentBlock
+            key={component.id}
+            component={component}
+            actions={spec.actions.filter(
+              (a) => a.appliesTo === component.component,
+            )}
+            onActivity={onActivity}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function CodeView({ spec, role }: { spec: ToolSpec; role: Role }) {
+  const files = useMemo<GeneratedFile[]>(
+    () => generateToolCode(spec, role),
+    [spec, role],
+  );
+  const [active, setActive] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const file = files[active];
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(file.contents);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <div className="flex flex-wrap gap-1">
+          {files.map((f, i) => (
+            <button
+              key={f.filename}
+              onClick={() => setActive(i)}
+              className={`rounded-md px-2.5 py-1 font-mono text-xs ${i === active ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+            >
+              {f.filename}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={copy}
+          className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <div className="px-4 pb-2 pt-3">
+        <p className="text-xs text-zinc-400">
+          Ejected from your composition for role{" "}
+          <span className="font-medium text-zinc-600">{role}</span>. The generated
+          code calls the same governed endpoints — masking and write permissions
+          stay enforced server-side.
+        </p>
+      </div>
+      <pre className="max-h-[480px] overflow-auto rounded-b-xl bg-zinc-950 px-4 py-4 text-xs leading-relaxed text-zinc-100">
+        <code>{file.contents}</code>
+      </pre>
     </div>
   );
 }

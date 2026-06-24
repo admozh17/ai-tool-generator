@@ -138,7 +138,7 @@ export default function AppPage() {
 
         <div className="mt-6">
           {spec ? (
-            <ToolRenderer spec={spec} />
+            <ToolRenderer spec={spec} role={user.role} />
           ) : (
             <div className="rounded-2xl border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-400">
               Your generated tool will render here.
