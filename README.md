@@ -20,6 +20,20 @@ over synthetic banking data (`customers`, `accounts`, `transactions`).
 
 ---
 
+## End-to-end walkthrough (video)
+
+A full screen recording of the app — admin login, prompt → governed tool, a
+confirmed write-back action, the ejected code, multi-source Customer 360, the
+Connectors and Audit Log views, and the viewer role with masked fields and
+stripped writes — lives at [`docs/walkthrough.mp4`](./docs/walkthrough.mp4).
+
+https://github.com/admozh17/ai-tool-generator/raw/devin/1782280143-ai-tool-generator/docs/walkthrough.mp4
+
+> GitHub renders the link above as an inline player on the PR/repo page. If it
+> doesn't, download [`docs/walkthrough.mp4`](./docs/walkthrough.mp4) directly.
+
+---
+
 ## Quick start
 
 ### Option A — Docker (recommended), runs in well under 5 minutes
