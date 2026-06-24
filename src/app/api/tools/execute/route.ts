@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { TOOLS, roleSatisfies } from "@/lib/registry";
 import { runTool } from "@/lib/tools";
+import { applyMasking, maskedFields } from "@/lib/governance";
 import { writeAudit } from "@/lib/audit";
 import type { ToolName } from "@/lib/types";
 
@@ -43,15 +44,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await runTool(toolName, params);
+    // Governance: mask classified fields server-side, per role, BEFORE the
+    // response leaves the server. The masked values never exist client-side.
+    const masked = applyMasking(result.columns, result.rows, user.role);
+    const redacted = maskedFields(masked.masking);
     await writeAudit({
       user,
       kind: "data_fetch",
       name: toolName,
-      params: result.resolvedParams,
+      params: {
+        ...result.resolvedParams,
+        ...(redacted.length ? { maskedFields: redacted } : {}),
+      },
     });
     return NextResponse.json({
-      columns: result.columns,
-      rows: result.rows,
+      columns: masked.columns,
+      rows: masked.rows,
+      masking: masked.masking,
       source: result.source,
     });
   } catch (err) {

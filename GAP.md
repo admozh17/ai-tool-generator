@@ -19,10 +19,13 @@ built; that contrast is the point, not a shortcoming).
 | 5 | **Confirmation / human-in-the-loop on writes** | ✅ Built | Explicit confirm modal before any action; action re-authorized server-side. |
 | 6 | **Role-based access control** | ✅ Built | `viewer` vs `admin`, enforced server-side at the tool/action layer, not by the LLM. |
 | 7 | **Audit / observability of actions** | ✅ Built | Append-only audit log of every fetch/action/generation with resolved params + target; in-app view. |
-| 8 | **Multiple data sources surfaced** | ✅ Built | Postgres + a mocked `/risk-score` microservice surfaced in one app. |
-| 9 | **Merged Snowflake + Stripe at warehouse scale** | 🟡 Partial | We surface *two* sources, not a governed cross-warehouse join. Closing = real connectors (Stripe SDK, Snowflake driver), a join/semantic layer, pagination, and caching. |
+| 8 | **Multiple data sources via a connector abstraction** | ✅ Built | 4 connectors behind one interface: Postgres + REST microservice (live) + Redshift + BigQuery (realistic mocks). New source = a connector config, not a rewrite. |
+| 8b | **Multi-source tool: fan-out + server-side join** | ✅ Built | `getCustomer360` queries all 4 connectors in parallel and joins on `customerId` into one unified profile. |
+| 8c | **Field-level governance over ingested sensitive data** | ✅ Built | Every column classified (`PUBLIC`/`PII`/`FINANCIAL`/`SENSITIVE`); masked server-side by role before leaving the API; SSN masked for all; masked fields audited. |
+| 9 | **Merged Snowflake + Stripe at warehouse scale** | 🟡 Partial | Warehouses (Redshift/BigQuery) are mocked *behind the real connector interface* and joined; swap-to-real is a driver+config change. Closing fully = real drivers, semantic/join layer, pagination, caching, incremental sync. |
 | 10 | **Real multi-file code generation** | ⬜ Not built (deliberate) | We compose registry blocks instead. Closing = sandboxed codegen + build/preview pipeline + code review/guardrails — the most expensive piece. |
 | 11 | **Free-form SQL from the model** | ⬜ Not built (deliberate guardrail) | Intentionally excluded to block injection/exfiltration. Closing safely = a SQL allow-list/parser, row-level security, and per-role query policies. |
+| 11b | **Row-level security / tenant scoping** | 🟡 Partial | Field-level masking is enforced; row-level scoping (region/tenant filters per role) is not. Closing = a policy predicate injected into every connector fetch. |
 | 12 | **Import existing React components** | ⬜ Not built | Closing = a component compiler/sandbox + a vetting/registry-ingestion flow so imports remain governed. |
 | 13 | **Natural-language theming** | ⬜ Not built | Closing = a constrained theme token schema the model can set (colors/spacing), rendered via CSS variables. Low risk, ~½ day. |
 | 14 | **Publish to production** | ⬜ Not built | Closing = environments (draft/prod), versioned specs, deploy + rollback, and access-controlled URLs. |
@@ -33,8 +36,15 @@ built; that contrast is the point, not a shortcoming).
 ## Reading of the gap
 
 - The **cheap, high-value 80%** — prompt→tool, live render, governed write-back,
-  RBAC, audit, multi-source surfacing — is achievable in a ~2h constrained build
-  because the surface area is bounded by a registry.
+  RBAC, audit, a multi-connector abstraction with fan-out/join, and field-level
+  data governance — is achievable in a constrained build because the surface area
+  is bounded by a registry of connectors + classified schemas.
+- **Connectivity + data governance specifically** (the two capabilities this
+  iteration targets) are *built*: the connector interface makes "many sources"
+  cheap, and classification + role-based masking makes "security over ingested
+  sensitive data" a server-side property the model can never bypass. The
+  remaining warehouse cost is real drivers + scale (sync, pagination, caching),
+  not the governance model itself.
 - The **expensive 20%** — real code generation, free-form SQL, import-React,
   publish-to-prod, warehouse-scale merges — is exactly the iceberg Retool paid
   for, and is where governance gets genuinely hard (sandboxing, query policy,

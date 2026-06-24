@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     .map((c) => {
       const score = scoreFor(c.id, c.riskLevel);
       return {
+        customerId: c.id,
         customer: c.name,
         score,
         band: band(score),

@@ -7,10 +7,10 @@ import ToolRenderer from "@/components/ToolRenderer";
 import type { AuthUser, GenerateResponse, ToolSpec } from "@/lib/types";
 
 const EXAMPLES = [
+  "Build a unified customer 360 for high-risk customers",
   "Show me high-risk customers with a freeze button",
+  "Show login activity and lifetime spend for risky customers",
   "List flagged transactions over 8000 so I can review them",
-  "Show accounts and let me freeze the risky ones",
-  "Give me model risk scores for high-risk customers",
 ];
 
 export default function AppPage() {

@@ -4,14 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   ComposedAction,
   ComposedComponent,
+  DataClass,
+  MaskingEntry,
+  ResultColumn,
   ToolSpec,
 } from "@/lib/types";
 
 interface ToolData {
-  columns: { key: string; label: string }[];
+  columns: ResultColumn[];
   rows: Record<string, unknown>[];
+  masking?: MaskingEntry[];
   source: string;
   error?: string;
+}
+
+const CLASS_STYLE: Record<DataClass, string> = {
+  PUBLIC: "bg-zinc-100 text-zinc-500",
+  PII: "bg-sky-100 text-sky-700",
+  FINANCIAL: "bg-violet-100 text-violet-700",
+  SENSITIVE: "bg-red-100 text-red-700",
+};
+
+function ClassChip({ column }: { column: ResultColumn }) {
+  if (column.classification === "PUBLIC") return null;
+  return (
+    <span
+      className={`ml-1 rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${CLASS_STYLE[column.classification]}`}
+      title={`${column.classification}${column.masked ? " — masked for your role" : ""}`}
+    >
+      {column.masked ? `🔒 ${column.classification}` : column.classification}
+    </span>
+  );
 }
 
 interface PendingAction {
@@ -190,6 +213,17 @@ function ComponentBlock({
         </button>
       </div>
 
+      {data?.masking?.some((m) => m.action === "masked") && (
+        <div className="mx-4 mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-800">
+          🔒 Governed:{" "}
+          {data.masking
+            .filter((m) => m.action === "masked")
+            .map((m) => `${m.field} (${m.classification})`)
+            .join(", ")}{" "}
+          masked server-side for your role.
+        </div>
+      )}
+
       {toast && (
         <div className="mx-4 mt-3 rounded-lg bg-zinc-900 px-3 py-2 text-xs text-white">
           {toast}
@@ -267,8 +301,9 @@ function DataTable({
         <thead>
           <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400">
             {data.columns.map((c) => (
-              <th key={c.key} className="px-2 py-2 font-medium">
+              <th key={c.key} className="whitespace-nowrap px-2 py-2 font-medium">
                 {c.label}
+                <ClassChip column={c} />
               </th>
             ))}
             {actions.length > 0 && <th className="px-2 py-2 font-medium" />}

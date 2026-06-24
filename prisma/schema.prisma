@@ -44,6 +44,9 @@ model Customer {
   id        String    @id @default(cuid())
   name      String
   email     String    @unique
+  // Sensitive ingested column. Never returned raw through a generated tool —
+  // the governance layer masks it for every role.
+  ssn       String    @default("")
   riskLevel RiskLevel @default(low)
   status    String    @default("active")
   note      String    @default("")

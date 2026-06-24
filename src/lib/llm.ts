@@ -69,7 +69,13 @@ function buildSpec(selection: Selection, role: Role): ToolSpec {
   const components: ComposedComponent[] = [...componentSet].map((type, i) => {
     const def = COMPONENTS[type];
     const params: Record<string, unknown> = {};
-    if (type === "CustomerTable" || type === "RiskScorePanel") {
+    if (
+      type === "CustomerTable" ||
+      type === "RiskScorePanel" ||
+      type === "LoginActivityTable" ||
+      type === "SpendAnalyticsTable" ||
+      type === "Customer360Table"
+    ) {
       if (selection.filters.riskLevel)
         params.riskLevel = selection.filters.riskLevel;
       if (selection.filters.search) params.search = selection.filters.search;
@@ -125,6 +131,12 @@ function titleForComponent(type: ComponentType): string {
       return "Transactions";
     case "RiskScorePanel":
       return "Risk Scores (external service)";
+    case "LoginActivityTable":
+      return "Login Activity (events warehouse)";
+    case "SpendAnalyticsTable":
+      return "Spend Analytics (analytics warehouse)";
+    case "Customer360Table":
+      return "Customer 360 (joined across all sources)";
   }
 }
 
@@ -153,11 +165,22 @@ export function ruleBasedCompose(prompt: string): Selection {
   else if (/medium[ -]?risk/.test(p)) filters.riskLevel = "medium";
   else if (/low[ -]?risk/.test(p)) filters.riskLevel = "low";
 
+  const wants360 =
+    /360|unified|single view|holistic|enrich|combined|all sources|everything (?:we know )?about|full profile|complete profile/.test(
+      p,
+    );
+
+  if (wants360) components.add("Customer360Table");
   if (/transaction|payment|charge/.test(p)) components.add("TransactionTable");
   if (/account/.test(p)) components.add("AccountCards");
-  if (/customer|client|user/.test(p)) components.add("CustomerTable");
+  if (!wants360 && /customer|client|user/.test(p))
+    components.add("CustomerTable");
   if (/risk score|score|model|fraud model/.test(p))
     components.add("RiskScorePanel");
+  if (/login|activity|session|last seen|sign[- ]?in|signed in|device|ip address|location|events warehouse|redshift/.test(p))
+    components.add("LoginActivityTable");
+  if (/spend|spending|lifetime|ltv|marketing|revenue|big ?query|analytics|top categor/.test(p))
+    components.add("SpendAnalyticsTable");
 
   if (/freeze|frozen|block account|suspend/.test(p))
     actions.add("freezeAccount");

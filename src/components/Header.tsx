@@ -16,6 +16,7 @@ export default function Header({ user }: { user: AuthUser }) {
 
   const tabs = [
     { href: "/app", label: "Generator" },
+    { href: "/connectors", label: "Connectors" },
     { href: "/audit", label: "Audit Log" },
   ];
 

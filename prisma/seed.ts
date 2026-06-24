@@ -53,6 +53,7 @@ async function main() {
       data: {
         name: faker.person.fullName(),
         email: faker.internet.email().toLowerCase(),
+        ssn: `${faker.number.int({ min: 100, max: 899 })}-${faker.number.int({ min: 10, max: 99 })}-${faker.number.int({ min: 1000, max: 9999 })}`,
         riskLevel,
         status: "active",
         note: "",

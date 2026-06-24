@@ -1,6 +1,7 @@
 import type {
   ActionName,
   ComponentType,
+  ConnectorId,
   Role,
   ToolName,
 } from "./types";
@@ -14,7 +15,8 @@ import type {
 export interface ToolDef {
   name: ToolName;
   description: string;
-  source: "postgres" | "risk-service";
+  // Which connector(s) back this tool. Composite tools fan out across several.
+  source: ConnectorId | ConnectorId[];
   // The smallest role allowed to execute this read tool.
   minRole: Role;
 }
@@ -63,6 +65,27 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     source: "risk-service",
     minRole: "viewer",
   },
+  getLoginActivity: {
+    name: "getLoginActivity",
+    description:
+      "Per-customer login/session telemetry from the events warehouse (Redshift, mocked).",
+    source: "redshift",
+    minRole: "viewer",
+  },
+  getSpendAnalytics: {
+    name: "getSpendAnalytics",
+    description:
+      "Per-customer lifetime spend and marketing analytics from the analytics warehouse (BigQuery, mocked).",
+    source: "bigquery",
+    minRole: "viewer",
+  },
+  getCustomer360: {
+    name: "getCustomer360",
+    description:
+      "A unified customer profile joined across all connectors: core DB + risk service + events + analytics warehouses.",
+    source: ["postgres", "risk-service", "redshift", "bigquery"],
+    minRole: "viewer",
+  },
 };
 
 export const COMPONENTS: Record<ComponentType, ComponentDef> = {
@@ -87,6 +110,24 @@ export const COMPONENTS: Record<ComponentType, ComponentDef> = {
     description:
       "A panel of model risk scores sourced from the external risk service.",
     tool: "getRiskScores",
+  },
+  LoginActivityTable: {
+    type: "LoginActivityTable",
+    description:
+      "A table of per-customer login activity from the events warehouse (Redshift).",
+    tool: "getLoginActivity",
+  },
+  SpendAnalyticsTable: {
+    type: "SpendAnalyticsTable",
+    description:
+      "A table of per-customer lifetime spend from the analytics warehouse (BigQuery).",
+    tool: "getSpendAnalytics",
+  },
+  Customer360Table: {
+    type: "Customer360Table",
+    description:
+      "A unified profile table joining customer, risk, activity and spend across every connector.",
+    tool: "getCustomer360",
   },
 };
 

@@ -7,10 +7,11 @@ over synthetic banking data (`customers`, `accounts`, `transactions`).
 
 > **The core scoping decision: constrained generation, not codegen.** A prompt
 > resolves to a composition of **pre-registered, governed building blocks** (a
-> fixed catalog of ~4 components and ~3 actions) — **not** free-form generated
-> code and **not** free-form SQL. Example: *"show me high-risk customers with a
-> freeze button"* selects a `CustomerTable` bound to `listCustomers` + an
-> `AccountCards` component carrying a `freezeAccount` action, and renders it.
+> fixed catalog of 7 components and 3 actions over 4 connectors) — **not**
+> free-form generated code and **not** free-form SQL. Example: *"show me
+> high-risk customers with a freeze button"* selects a `CustomerTable` bound to
+> `listCustomers` + an `AccountCards` component carrying a `freezeAccount`
+> action, and renders it.
 >
 > This is **not** a clone of Retool's builder. Retool's product does real
 > multi-file code generation, import-React, NL theming and publish-to-prod. We
@@ -60,13 +61,27 @@ Open **http://localhost:3000**.
 
 ## The three pillars
 
-### Pillar 1 — Connectivity
-- **Primary source: Postgres** (via Prisma) backs `listCustomers`, `listAccounts`,
-  `listTransactions`.
-- **Second source: a mocked `/risk-score` microservice** (`src/app/api/risk-score`)
-  with its own model-scored shape (`score`/`band`/`model`) and simulated latency,
-  surfaced through the `RiskScorePanel` component. This demonstrates *"data from
-  more than one place"* — **not** warehouse-scale joins (see `GAP.md`).
+### Pillar 1 — Connectivity (multi-source via a connector abstraction)
+Every data tool belongs to a **connector** (`src/lib/connectors.ts`). Four are
+wired up behind **one interface**, so "add a source" is a connector-config change,
+not an app rewrite. See them in the in-app **Connectors** view (`/connectors`).
+
+| Connector | Kind | Status | Tools |
+| --------- | ---- | ------ | ----- |
+| Core Banking DB | Postgres (primary) | **live** | `listCustomers`, `listAccounts`, `listTransactions` |
+| Risk Scoring Service | REST microservice | **live** | `getRiskScores` |
+| Events Warehouse | Redshift | **mocked** | `getLoginActivity` |
+| Marketing Analytics | BigQuery | **mocked** | `getSpendAnalytics` |
+
+- The Redshift/BigQuery connectors are **realistic mocks behind the real connector
+  interface** (`src/app/api/connectors/{redshift,bigquery}`) returning
+  warehouse-shaped rows keyed by `customerId`. Swapping either for a real driver
+  is isolated to one file + a config flag — schema and tool surface stay identical.
+- **Multi-source composition:** the composite `getCustomer360` tool **fans out
+  across all four connectors in parallel and joins on `customerId`** server-side,
+  rendering a single unified profile. This is the *"build one tool over many
+  places"* capability (try: *"Build a unified customer 360 for high-risk
+  customers"*).
 
 ### Pillar 2 — Generation
 - A chat input takes a natural-language request → returns a **composed tool spec**
@@ -91,10 +106,20 @@ Open **http://localhost:3000**.
 - **No raw SQL and no arbitrary code from the model** — it composes only from the
   fixed registry (`src/lib/registry.ts`). This is the guardrail against
   prompt-injection-driven exfiltration / destructive actions.
+- **Field-level data governance (security over ingested data).** Every connector
+  column is **classified** — `PUBLIC` / `PII` / `FINANCIAL` / `SENSITIVE`
+  (`src/lib/connectors.ts`). A server-side masking policy (`src/lib/governance.ts`)
+  masks values **by role, at fetch time, before the response leaves the server** —
+  the LLM and the client never receive raw classified values:
+  - `PUBLIC` — always visible.
+  - `PII` (email, IP), `FINANCIAL` (balance, lifetime spend) — visible to admin,
+    masked for viewer (`e•••@host`, `$••••`).
+  - `SENSITIVE` (SSN, an ingested DB column) — **masked for everyone**, every
+    role, regardless of prompt wording (`•••-••-1234`).
 - **Append-only audit log**: every data fetch, write action, and generation writes
   one row — who, the resolved component/tool/action **+ parameters** (not just the
-  prose prompt), the target record, outcome, and when. Surfaced in the in-app
-  **Audit Log** view (`/audit`).
+  prose prompt), the target record, outcome, **and which classified fields were
+  masked** (`maskedFields`). Surfaced in the in-app **Audit Log** view (`/audit`).
 
 ---
 
@@ -106,10 +131,12 @@ Open **http://localhost:3000**.
 | Live rendered UI from the prompt     | **Built**   |
 | Write-back with confirmation         | **Built**   |
 | Role-based governance + audit log    | **Built**   |
-| Two data sources surfaced            | **Built**   |
+| Many connectors over one interface   | **Built** (4: Postgres, REST, Redshift mock, BigQuery mock) |
+| Multi-source tool (fan-out + join)   | **Built** (`getCustomer360` joins 4 sources on `customerId`) |
+| Field-level governance over ingested PII/financial data | **Built** (classification + role masking + audit) |
 | Real multi-file **code** generation  | Not built (deliberate) |
 | Free-form SQL / arbitrary model code | Not built (deliberate guardrail) |
-| Warehouse-scale Snowflake+Stripe merge | Partial (two-source surfacing only) |
+| Warehouse-scale Snowflake+Stripe merge | Partial (mocked warehouses behind real interface) |
 | NL theming / import-React / publish  | Not built  |
 
 ## Rough time spent (timeboxed ~2h)

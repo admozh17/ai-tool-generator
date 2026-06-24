@@ -1,18 +1,50 @@
 export type Role = "viewer" | "admin";
 
+// Data classification for every column a connector exposes. Governs masking.
+export type DataClass = "PUBLIC" | "PII" | "FINANCIAL" | "SENSITIVE";
+
 export type ComponentType =
   | "CustomerTable"
   | "AccountCards"
   | "TransactionTable"
-  | "RiskScorePanel";
+  | "RiskScorePanel"
+  | "LoginActivityTable"
+  | "SpendAnalyticsTable"
+  | "Customer360Table";
 
 export type ToolName =
   | "listCustomers"
   | "listAccounts"
   | "listTransactions"
-  | "getRiskScores";
+  | "getRiskScores"
+  | "getLoginActivity"
+  | "getSpendAnalytics"
+  | "getCustomer360";
+
+export type ConnectorId =
+  | "postgres"
+  | "risk-service"
+  | "redshift"
+  | "bigquery";
 
 export type ActionName = "freezeAccount" | "flagTransaction" | "addCustomerNote";
+
+// A column a connector/tool exposes, carrying its data classification so the
+// governance layer can decide visibility per role.
+export interface ResultColumn {
+  key: string;
+  label: string;
+  classification: DataClass;
+  // Set by the governance layer: true when values were masked for the caller.
+  masked?: boolean;
+}
+
+// One entry per classified column, recording whether it was shown or masked.
+export interface MaskingEntry {
+  field: string;
+  classification: DataClass;
+  action: "visible" | "masked";
+}
 
 export interface AuthUser {
   id: string;
